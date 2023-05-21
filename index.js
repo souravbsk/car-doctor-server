@@ -1,8 +1,6 @@
 const express = require("express");
 const cors = require("cors");
 const jwt = require("jsonwebtoken")
-
-
 const app = express();
 require("dotenv").config();
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
@@ -38,7 +36,7 @@ const verifyJWT = (req,res,next) => {
   jwt.verify(token,process.env.ACCESSS_TOKEN_SECRET,(error,decoded) => {
     // যদি ভ্যারিফাই error হয় তবে এই মেসেজ সেন্ড করবো
     if(error){
-      return res.send({error: true, message: "unauthorized access"})
+      return res.status(401).send({error: true, message: "unauthorized access"})
     }
     // আর যদি ভ্যারিফাই হয়ে req object এর মদ্ধ্যে decoded নামে একটা কাস্টম প্রোপার্টি সেট করে দিবো 
     req.decoded = decoded;
@@ -70,12 +68,48 @@ async function run() {
 
     // service collection
     app.get("/services", async (req, res) => {
+      // const query = {};
 
-      const cursor = serviceCollection.find();
+      //100 টাকার নিচের গুলা দাও 
+      // const query = {price: {$lt:100}}
+
+      //100 টাকার বড় গুলা দাও 
+      // const query = {price: {$gt:100}}
+
+      //20 টাকার সমান সমান গুলা দাও 
+      // const query = {price: {$eq:20}}
+
+
+      //50 থেকে ২০০ টাকার  যেই price গুলো আছে সেগুলো দাও 
+      // const query = {price: {$in:[50,200]}}
+
+      //50 থেকে ২০০ টাকার  যেই price গুলো নাই সেগুলো দাও 
+        // const query = {price: {$in:[50,200]}}
+
+        //50 এর সমান নয় যেগুলো সেই গুলো কে দাও 
+        // const query = {price: {$ne:50}}
+
+
+      const sort = req.query.sort;
+      const search = req.query.search;
+      const query = {title: {$regex: search, $options:'i'}}
+
+      console.log(search);
+//       { sort: 'ase' }
+// { sort: 'ase' }
+      const options = {
+        // sort matched documents in descending order by rating
+        sort: { "price": `${sort === 'ase' ? 1 : -1}` },
+        // Include only the `title` and `imdb` fields in the returned document
+      };
+  
+      const cursor = serviceCollection.find(query,options);
       const result = await cursor.toArray();
       res.send(result);
     });
 
+   
+    
     app.get("/services/:id", async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
@@ -87,16 +121,15 @@ async function run() {
       res.send(result);
     });
 
+
+    // booking route 
     app.get("/bookings", verifyJWT, async (req, res) => {
-      // console.log(req.headers.authorization);
       //decoded নামে সেট করা প্রোপার্টি টা req.decoded থেকে পাবো 
       const decoded = req.decoded
-
       // decoded.email এবং req.query.email থেকে পাওয়া ইমেল যদি না মিলে তবে পাঠিয়ে দিবো 
-      if(decoded?.email !== req.query.email ){
+      if(decoded.email !== req.query.email ){
         return res.status(404).send({error:1,message:'forbidden access'})
       }
-
       let query = {};
 
       if (req.query?.email) {
@@ -106,9 +139,11 @@ async function run() {
       res.send(result);
     });
 
+
     //booking
     app.post("/bookings", async (req, res) => {
       const booking = req.body;
+
       const result = await bookingCollection.insertOne(booking);
       res.send(result);
     });
